@@ -19,12 +19,13 @@ An interactive 3D lesson for high-school students: travel from a whole 300 mm si
   | Crystal | The silicon crystal | about 2 nm |
   | Atom | One atom's electron cloud | about 0.5 nm |
 
-  A scale ruler shows how far you have zoomed.
+  A scale ruler shows how far you have zoomed, and a size comparison names an everyday object of about that size (a dinner plate, a postage stamp, a red blood cell, a virus, a DNA strand, water molecules).
 - **Clickable labels:** tap any labelled part of the model for a short explanation.
-- **Check your understanding:** one multiple-choice question per stop. Wrong answers can be retried. The score counts answers right on the first try.
-- **Completion:** answering all seven shows a "2D/3D training is complete" card with the name, V-number, score and time.
+- **Check your understanding:** one multiple-choice question per stop. The next stop stays locked until it is answered correctly, and a Continue button leads on. Wrong answers can be retried. The score counts answers right on the first try.
+- **Completion and certificate:** answering all seven shows a "2D/3D training is complete" card with the name, V-number, score, time and a certificate ID, plus a **Download certificate** button for a printable certificate of completion.
 - **Real images:** a panel shows a real microscope image at most stops (see [CREDITS.md](CREDITS.md)).
-- **Auto tour:** left alone, the page tours itself. Any click, key or scroll hands control to you, and the tour comes back after 25 seconds of no input.
+- **Auto tour:** before sign-in the page tours itself; once a trainee signs in, they drive and stops unlock in order.
+- **Look:** a mirror-polished wafer that reflects studio light, real die photography on every die, and the Operation SEMI / MI-CHIPS presentation colours (Trojan Blue `#00358E`, Precision Orange `#FF6700` as a small accent, Deep Academic Slate `#0B0F19`).
 
 ### Controls
 
@@ -43,7 +44,7 @@ An interactive 3D lesson for high-school students: travel from a whole 300 mm si
 
 On GitHub Pages the lesson and questions work fully, but **results are not saved anywhere**; the completion card is the only record.
 
-Completions are recorded only when the page is opened on claude.ai, where it uses the artifact's shared database. Records are readable only by the owner and editors, through a records view with a CSV download.
+Completions are recorded only when the page is opened on claude.ai, where it uses the artifact's shared database. Records are readable only by the owner and editors, through a records view with a CSV download and a certificate download for each trainee.
 
 ## Files
 
@@ -60,7 +61,7 @@ Completions are recorded only when the page is opened on claude.ai, where it use
   | `film.js` | The tour script |
   | `live.js` | The interactive page |
   | `edu.js` | The lesson text, part notes and questions |
-  | `trainee.js` | Sign-in, questions, completion and recording |
+  | `trainee.js` | Sign-in, locked stops, questions, completion, certificate and recording |
 
 - `src/kit/`: helper modules from the Teardown kit, MIT licensed (see `src/kit/LICENSE`).
 - `src/wafer-live/` and `src/wafer-film/`: the entry points for the interactive page and the recorded tour.

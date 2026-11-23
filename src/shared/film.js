@@ -170,6 +170,7 @@ export function makeLabels(st) {
     {stop: 6, L: atom, name: 'OUTER ELECTRONS', sub: '4 · LOBES THAT REACH THE NEIGHBOURS', hot: true, at: () => atom.DIRS[0].clone().multiplyScalar(0.1)},
     {stop: 6, L: atom, name: 'BOND TO A NEIGHBOUR', sub: 'ONE OF FOUR, 0.235 NM AWAY', at: () => atom.DIRS[2].clone().multiplyScalar(0.12)},
   ];
+  const sideOf = new Map();
   return (J, t, o) => {
     if (o < 0.02) return [];
     const near = J.near;
@@ -185,8 +186,16 @@ export function makeLabels(st) {
         return {p, at, on};
       })
       .filter((x) => x.at && x.at[0] > 330 && x.at[0] < 1270 && x.at[1] > 110 && x.at[1] < 740);
-    const L = pts.filter((x) => x.at[0] < 800).sort((a, b) => a.at[1] - b.at[1]);
-    const R = pts.filter((x) => x.at[0] >= 800).sort((a, b) => a.at[1] - b.at[1]);
+    // a label changes column only once its part is well past the middle, so labels near the centre do not flicker
+    for (const x of pts) {
+      const k = x.p.name + x.p.stop;
+      const was = sideOf.get(k);
+      const side = x.at[0] < 740 ? 'L' : x.at[0] > 860 ? 'R' : was || (x.at[0] < 800 ? 'L' : 'R');
+      sideOf.set(k, side);
+      x.side = side;
+    }
+    const L = pts.filter((x) => x.side === 'L').sort((a, b) => a.at[1] - b.at[1]);
+    const R = pts.filter((x) => x.side === 'R').sort((a, b) => a.at[1] - b.at[1]);
     const out = [];
     const stack = (col, x, w) => {
       let y = 130;
@@ -205,7 +214,7 @@ export function makeLabels(st) {
 export function makeConsoleFrame(ui, st) {
   const labels = makeLabels(st);
   return (t, s) => {
-    ui.update({J: s.J, display: s.display, paused: s.paused ?? false, speed: s.speed ?? 1, speedK: s.speedK ?? 0.5, callouts: labels(s.J, t, s.labels), cursor: s.cursor});
+    ui.update({J: s.J, display: s.display, paused: s.paused ?? false, speed: s.speed ?? 1, speedK: s.speedK ?? 0.5, callouts: labels(s.J, t, s.labels), cursor: s.cursor, locked: s.locked ?? null});
   };
 }
 

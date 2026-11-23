@@ -9,7 +9,7 @@ import {DIES, FET, GAP, journey, LAYERS, LIFT, METAL, NSTOP, SEL, SEL_C, SI, sta
 
 const V3 = THREE.Vector3;
 export const VIEWH = 2.0; // world units the field of view spans vertically at the target
-export const ACCENT = '#e4572e';
+export const ACCENT = '#FF6700'; // MI-CHIPS C04 Precision Orange: the part that is working
 const UNIT = {macro: 1e-3, wiring: 1e-6, fet: 1e-9, crystal: 1e-9, atom: 1e-9};
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const smooth = (x) => {
@@ -115,13 +115,14 @@ function drawFloorplan(g, n) {
 // The interference colour of the reference photo: orange at one side through yellow and green to violet, swept
 // diagonally across the wafer.
 export function rainbow(x, z, out) {
-  const u = clamp((x * 0.8 - z * 0.6) / (2 * W.r) + 0.5, 0, 1);
-  return out.setHSL(0.02 + 0.78 * u, 0.55, 0.84);
+  const u = clamp((x * 0.8 - z * 0.6) / (1.5 * W.r) + 0.5, 0, 1);
+  return out.setHSL(0.02 + 0.84 * u, 1.0, 0.56);
 }
 
 // ------------------------------------------------------------ level 0..2: wafer, die, exploded stack (mm)
 function buildMacro() {
   const root = new THREE.Group();
+  const reflective = [];
   const plan = canvasTex(512, 512, drawFloorplan);
   plan.wrapS = plan.wrapT = THREE.RepeatWrapping;
   // the rainbow: film thickness swept across the wafer, so the interference colour drifts as in the photo
@@ -137,10 +138,10 @@ function buildMacro() {
   thick.repeat.set(1 / nCell, 1 / nCell);
   thick.offset.set(0.5, 0.5);
   const waferTop = mat(
-    {map: plan, color: '#7d828d', vertexColors: true, roughness: 0.45, metalness: 0.15, iridescence: 0.5, iridescenceIOR: 1.8, iridescenceThicknessRange: [180, 720], iridescenceThicknessMap: thick, clearcoat: 1, clearcoatRoughness: 0.08},
+    {map: plan, color: '#7d828d', vertexColors: true, roughness: 0.14, metalness: 0.5, iridescence: 0.9, iridescenceIOR: 1.8, iridescenceThicknessRange: [180, 720], iridescenceThicknessMap: thick, clearcoat: 1, clearcoatRoughness: 0.03},
     THREE.MeshPhysicalMaterial,
   );
-  const silicon = mat({color: '#9aa0ab', roughness: 0.45, metalness: 0.6});
+  const silicon = mat({color: '#b4b9c3', roughness: 0.12, metalness: 0.85});
   const siliconDark = mat({color: '#6d727c', roughness: 0.5, metalness: 0.5});
 
   const top = new THREE.RingGeometry(0.01, W.r, 256, 48);
@@ -162,9 +163,11 @@ function buildMacro() {
   side.position.y = W.t / 2;
   const bot = new THREE.Mesh(new THREE.CircleGeometry(W.r, 128).rotateX(Math.PI / 2), siliconDark);
   // the bare rim: the edge exclusion
+  // the bare rim is polished silicon: a mirror band around the patterned area
+  const rimMat = mat({color: '#c6cbd4', roughness: 0.06, metalness: 0.92});
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(W.r - W.edge, W.r, 256).rotateX(-Math.PI / 2),
-    mat({color: '#a7adb8', roughness: 0.45, metalness: 0.55, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4}),
+    rimMat,
   );
   ring.position.y = W.t + 0.02;
   ring.receiveShadow = true;
@@ -179,8 +182,9 @@ function buildMacro() {
   const photo = new THREE.Texture();
   photo.colorSpace = THREE.SRGBColorSpace;
   photo.anisotropy = 16;
-  const tileTop = mat({map: photo, roughness: 0.45, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.07, iridescence: 0.55, iridescenceIOR: 1.7, iridescenceThicknessRange: [250, 650]}, THREE.MeshPhysicalMaterial);
+  const tileTop = mat({map: photo, roughness: 0.14, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.03, iridescence: 0.9, iridescenceIOR: 1.7, iridescenceThicknessRange: [250, 650]}, THREE.MeshPhysicalMaterial);
   const tileSide = mat({color: '#3a3f48', roughness: 0.45, metalness: 0.5});
+  reflective.push(waferTop, silicon, rimMat, tileTop);
   const sealMat = mat({color: '#c7a46c', roughness: 0.45, metalness: 1});
   const TH = 0.03; // tile relief, exaggerated from the real few micrometres so each edge catches the light
   const tileGeo = new THREE.BoxGeometry(W.die, TH, W.die).translate(0, TH / 2, 0);
@@ -203,7 +207,7 @@ function buildMacro() {
       o.updateMatrix();
       tiles.setMatrixAt(n, o.matrix);
       seals.setMatrixAt(n, o.matrix.clone().setPosition(cx, W.t + TH, cz));
-      tiles.setColorAt(n, rainbow(cx, cz, tc).lerp(white, 0.3));
+      tiles.setColorAt(n, rainbow(cx, cz, tc).lerp(white, 0.12));
     });
   }
   tiles.receiveShadow = true;
@@ -244,8 +248,8 @@ function buildMacro() {
       for (let q = 0; q < d.length; q += 4) {
         const l = 0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2];
         for (let k = 0; k < 3; k++) {
-          const v = d[q + k] + (l - d[q + k]) * 0.62;
-          d[q + k] = Math.max(0, Math.min(255, ((v - 128) * 1.18 + 128) * tint[k]));
+          const v = d[q + k] + (l - d[q + k]) * 0.85;
+          d[q + k] = Math.max(0, Math.min(255, ((v - 128) * 1.3 + 138) * tint[k]));
         }
       }
       g.putImageData(px, 0, 0);
@@ -363,7 +367,8 @@ function buildMacro() {
   });
   // the floor plan as it looks from above, on top of the closed die; fades as the die opens
   const decalMat = tileTop.clone();
-  decalMat.color = rainbow(SEL_C[0], -SEL_C[1], new THREE.Color()).lerp(new THREE.Color(1, 1, 1), 0.6);
+  reflective.push(decalMat);
+  decalMat.color = rainbow(SEL_C[0], -SEL_C[1], new THREE.Color()).lerp(new THREE.Color(1, 1, 1), 0.12);
   const decal = new THREE.Mesh(new THREE.PlaneGeometry(W.die, W.die).rotateX(-Math.PI / 2), decalMat);
   const decalSeal = new THREE.Mesh(sealGeo, sealMat.clone());
   decal.add(decalSeal);
@@ -386,6 +391,7 @@ function buildMacro() {
   return {
     root,
     ready: Promise.all([ready, readyTop]),
+    reflective,
     unit: UNIT.macro,
     plates,
     centre(J) {
@@ -636,6 +642,10 @@ uniform vec3 uLobe;
 varying vec3 vRo;
 varying vec3 vP;
 varying vec3 vCol;
+varying vec4 vM0;
+varying vec4 vM1;
+varying vec4 vM2;
+varying vec4 vM3;
 void main(){
   mat4 m = modelMatrix;
   #ifdef USE_INSTANCING
@@ -643,6 +653,10 @@ void main(){
   #endif
   vRo = (inverse(m) * vec4(cameraPosition, 1.0)).xyz;
   vP = position;
+  vM0 = m[0];
+  vM1 = m[1];
+  vM2 = m[2];
+  vM3 = m[3];
   #ifdef USE_INSTANCING_COLOR
   vCol = instanceColor;
   #else
@@ -653,24 +667,43 @@ void main(){
 const VOL_FRAG = /* glsl */ `
 uniform vec3 uCore;
 uniform float uA;
+uniform float uInv;
 uniform float uT;
 uniform float uR;
 uniform float uK;
 uniform float uNuc;
+uniform mat4 projectionMatrix;
 varying vec3 vRo;
 varying vec3 vP;
 varying vec3 vCol;
+varying vec4 vM0;
+varying vec4 vM1;
+varying vec4 vM2;
+varying vec4 vM3;
 const vec3 D0 = vec3(0.57735, 0.57735, 0.57735);
 const vec3 D1 = vec3(0.57735, -0.57735, -0.57735);
 const vec3 D2 = vec3(-0.57735, 0.57735, -0.57735);
 const vec3 D3 = vec3(-0.57735, -0.57735, 0.57735);
+const float ISO = 0.62;
 float lobe(vec3 p, vec3 d){
   float a = dot(p, d);
   vec3 q = p - a * d;
   float u = (a - 0.086) / 0.044;
   return exp(-u * u - dot(q, q) / (0.03 * 0.03));
 }
+float coreF(vec3 p){
+  float r2 = dot(p, p);
+  return 7.0 * exp(-r2 / (0.026 * 0.026)) + 1.5 * exp(-r2 / (0.056 * 0.056));
+}
+float lobeF(vec3 p){
+  return 1.35 * (lobe(p, D0) + lobe(p, D1) + lobe(p, D2) + lobe(p, D3));
+}
+float field(vec3 p){ return coreF(p) + lobeF(p); }
 void main(){
+  // fades are a fixed per-pixel dither, so a surface that fades out and one that fades in at the same place
+  // (the crystal's centre atom handing over to the atom stop) cover exactly complementary pixels: never both, never neither
+  float hsh = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (uInv < 0.5 ? hsh >= uA : hsh < 1.0 - uA) discard;
   vec3 rd = normalize(vP - vRo);
   float b = dot(vRo, rd);
   float c = dot(vRo, vRo) - uR * uR;
@@ -680,39 +713,55 @@ void main(){
   float t0 = max(-b - h, 0.0);
   float t1 = -b + h;
   if (t1 <= 0.0) discard;
-  const int N = 48;
+  // march to the first crossing of the density surface
+  const int N = 72;
   float dt = (t1 - t0) / float(N);
-  vec3 col = vec3(0.0);
-  float A = 0.0;
-  float t = t0 + dt * 0.5;
+  float t = t0;
+  float prev = field(vRo + rd * t);
+  bool hit = false;
+  vec3 ph = vec3(0.0);
   for (int i = 0; i < N; i++){
-    vec3 p = vRo + rd * t;
-    float r2 = dot(p, p);
-    float core = 7.0 * exp(-r2 / (0.026 * 0.026)) + 1.5 * exp(-r2 / (0.056 * 0.056));
-    float lb = lobe(p, D0) + lobe(p, D1) + lobe(p, D2) + lobe(p, D3);
-    lb *= 1.35 * (1.0 + 0.07 * sin(uT * 1.7 + r2 * 380.0));
-    float nuc = uNuc * 60.0 * exp(-r2 / (0.0065 * 0.0065));
-    float dens = core + lb + nuc;
-    float a = 1.0 - exp(-dens * dt * uK);
-    vec3 cc = (core * uCore + lb * vCol + nuc * vec3(1.0, 0.42, 0.3)) / max(dens, 1e-4);
-    // a little shading from above, so the cloud has a lit side and a shadowed side
-    cc *= 0.82 + 0.3 * clamp(p.y / 0.15 + 0.5, 0.0, 1.0);
-    col += (1.0 - A) * a * cc;
-    A += (1.0 - A) * a;
-    if (A > 0.985) break;
-    t += dt;
+    float tn = t + dt;
+    vec3 p = vRo + rd * tn;
+    float f = field(p);
+    if (f > ISO){
+      float k = clamp((ISO - prev) / max(f - prev, 1e-4), 0.0, 1.0);
+      ph = vRo + rd * (t + dt * k);
+      hit = true;
+      break;
+    }
+    prev = f;
+    t = tn;
   }
-  if (A < 0.004) discard;
-  gl_FragColor = vec4(col / A, A * uA);
+  if (!hit) discard;
+  // a lit surface: normal from the density gradient, a soft key light from above and a small specular highlight
+  float e = 0.0025;
+  vec3 n = -normalize(vec3(
+    field(ph + vec3(e, 0.0, 0.0)) - field(ph - vec3(e, 0.0, 0.0)),
+    field(ph + vec3(0.0, e, 0.0)) - field(ph - vec3(0.0, e, 0.0)),
+    field(ph + vec3(0.0, 0.0, e)) - field(ph - vec3(0.0, 0.0, e))));
+  vec3 L = normalize(vec3(-0.4, 0.85, 0.35));
+  float diff = 0.38 + 0.62 * max(dot(n, L), 0.0);
+  float spec = pow(max(dot(reflect(-L, n), -rd), 0.0), 36.0) * 0.45;
+  float rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0) * 0.25;
+  float lb = lobeF(ph);
+  float cr = coreF(ph);
+  vec3 base = mix(uCore, vCol, smoothstep(0.25, 0.75, lb / max(lb + cr, 1e-4)));
+  float nuc = uNuc * exp(-dot(ph, ph) / (0.03 * 0.03));
+  gl_FragColor = vec4(base * diff + vec3(spec) + vec3(rim) + nuc * vec3(1.0, 0.45, 0.3), 1.0);
+  // the true depth of the surface, so overlapping atoms hide each other correctly whatever order they are drawn in
+  mat4 m = mat4(vM0, vM1, vM2, vM3);
+  vec4 clip = projectionMatrix * viewMatrix * m * vec4(ph, 1.0);
+  gl_FragDepth = clamp(clip.z / clip.w * 0.5 + 0.5, 0.0, 1.0);
 }`;
 const CLOUD_R = 0.2; // nm: the drawn extent of one atom's cloud
 function cloudMaterial({core, lobe, k = 9, nuc = 0}) {
   return new THREE.ShaderMaterial({
     vertexShader: VOL_VERT,
     fragmentShader: VOL_FRAG,
-    uniforms: {uCore: {value: new THREE.Color(core)}, uLobe: {value: new THREE.Color(lobe)}, uA: {value: 1}, uT: {value: 0}, uR: {value: CLOUD_R}, uK: {value: k}, uNuc: {value: nuc}},
-    transparent: true,
-    depthWrite: false,
+    uniforms: {uCore: {value: new THREE.Color(core)}, uLobe: {value: new THREE.Color(lobe)}, uA: {value: 1}, uInv: {value: 0}, uT: {value: 0}, uR: {value: CLOUD_R}, uK: {value: k}, uNuc: {value: nuc}},
+    transparent: false,
+    depthWrite: true,
     side: THREE.BackSide,
   });
 }
@@ -745,47 +794,48 @@ function buildCrystal() {
   const bonds = [];
   for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (Math.abs(pts[i].distanceTo(pts[j]) - SI.bond) < 0.004) bonds.push([i, j]);
   const centre = new V3(a, a, a); // an fcc site, the middle of the 2 x 2 x 2 block
-  // every atom as a cloud, the centre one with its outer electrons in the accent; the second sublattice's lobes point
-  // the other way (a quarter turn about z). Drawn back to front, re-sorted every frame: blended volumes need it.
+  // every atom as a solid electron-density surface; the second sublattice's lobes point the other way (a quarter turn
+  // about z). The centre atom is its own mesh, its outer electrons in the accent: it is the atom the journey enters.
   const hotIdx = pts.findIndex((p) => p.distanceTo(centre) < 1e-3);
+  const others = pts.map((_, i) => i).filter((i) => i !== hotIdx);
   const cloudMat = cloudMaterial({core: '#56688c', lobe: '#9fb1cf'});
-  const clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, pts.length);
+  const clouds = new THREE.InstancedMesh(cloudGeo, cloudMat, others.length);
   const casters = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 10, 8), casterMat, pts.length);
   const o = new THREE.Object3D();
-  const mats4 = pts.map((p, i) => {
+  const grey = new THREE.Color('#9fb1cf');
+  pts.forEach((p, i) => {
     o.position.copy(p);
     o.rotation.set(0, 0, sub[i] ? Math.PI / 2 : 0);
-    o.scale.setScalar(1);
     o.updateMatrix();
     casters.setMatrixAt(i, o.matrix);
-    return o.matrix.clone();
   });
-  const grey = new THREE.Color('#9fb1cf');
-  const accent = new THREE.Color(ACCENT);
-  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-  let hideHot = false;
-  const order = pts.map((_, i) => i);
-  const sort = (cam) => {
-    order.sort((x, y) => pts[y].distanceToSquared(cam) - pts[x].distanceToSquared(cam));
-    order.forEach((i, q) => {
-      clouds.setMatrixAt(q, i === hotIdx && hideHot ? zero : mats4[i]);
-      clouds.setColorAt(q, i === hotIdx ? accent : grey);
-    });
-    clouds.instanceMatrix.needsUpdate = true;
-    clouds.instanceColor.needsUpdate = true;
-  };
-  sort(new V3(10, 10, 10));
+  others.forEach((i, q) => {
+    o.position.copy(pts[i]);
+    o.rotation.set(0, 0, sub[i] ? Math.PI / 2 : 0);
+    o.updateMatrix();
+    clouds.setMatrixAt(q, o.matrix);
+    clouds.setColorAt(q, grey);
+  });
+  const hotMat = cloudMaterial({core: '#56688c', lobe: ACCENT});
+  const hot = new THREE.Mesh(cloudGeo, hotMat);
+  hot.position.copy(centre);
+  hot.userData.noAO = true;
   clouds.userData.noAO = true;
   casters.castShadow = true;
-  root.add(clouds, casters);
+  root.add(clouds, casters, hot);
   // the unit cell edges, a thin ink cube
   const cell = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(a, a, a)), new THREE.LineBasicMaterial({color: ACCENT, transparent: true, opacity: 0.7}));
   cell.position.set(a * 1.5, a * 0.5, a * 1.5);
   root.add(cell);
-  return {root, unit: UNIT.crystal, sort, cell, centreAtom: centre, centre: () => centre.clone(), anchor: () => centre.clone(), floorY: -0.16, update(J, t) {
+  return {root, unit: UNIT.crystal, cell, centreAtom: centre, centre: () => centre.clone(), anchor: () => centre.clone(), floorY: -0.16, update(J, t) {
     cloudMat.uniforms.uT.value = t;
-    // the centre atom hands over to the atom stop's cloud, which sits exactly on it
-    hideHot = J.i === 5 && J.z > 0.27;
+    hotMat.uniforms.uT.value = t;
+    // the centre atom hands over to the atom stop's surface, which sits exactly on it: the same dither, inverted, so
+    // each pixel shows one or the other (the atom stop fades in over z 0.1 to 0.45 on this step)
+    if (J.i === 5) {
+      hotMat.uniforms.uInv.value = 1;
+      hotMat.uniforms.uA.value = 1 - smooth((J.z - 0.1) / 0.35);
+    } else hotMat.uniforms.uInv.value = 0;
   }, atoms: pts, bonds};
 }
 

@@ -24,19 +24,19 @@ const speedK = (v) => (v - SPEED[0]) / (SPEED[1] - SPEED[0]);
 const HOLD = 3.2; // seconds the play button rests at each stop, at 1x
 
 const CSS = `
-html,body{margin:0;height:100%;background:#eceef2;overflow:hidden;color-scheme:light}
+html,body{margin:0;height:100%;background:#FAFBFD;overflow:hidden;color-scheme:light}
 #app{position:absolute!important;inset:auto!important;left:0;top:0;width:${W}px;height:${H}px;transform-origin:0 0}
 #gl{touch-action:none;cursor:grab;position:absolute;left:0;top:0;width:${W}px!important;height:${H}px!important}
 #gl.drag{cursor:grabbing}
 .bt{pointer-events:auto;cursor:pointer}
 .bt:hover{filter:brightness(.97)}
 .hit{position:absolute;pointer-events:auto;cursor:ew-resize}
-.tourchip{position:absolute;left:800px;top:104px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;height:22px;padding:0 11px;border:1px solid #e1e4ea;border-radius:4px;background:rgba(250,251,252,.95);color:#1f2229;font:700 9px 'JetBrains Mono',monospace;letter-spacing:1.3px;white-space:nowrap;cursor:pointer;pointer-events:auto}
-.tourchip i{display:block;width:6px;height:6px;border-radius:50%;background:#e4572e}
+.tourchip{position:absolute;left:800px;top:104px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;height:22px;padding:0 11px;border:1px solid #E0E5EC;border-radius:4px;background:rgba(255,255,255,.96);color:#0B0F19;font:700 9px 'JetBrains Mono',monospace;letter-spacing:1.3px;white-space:nowrap;cursor:pointer;pointer-events:auto}
+.tourchip i{display:block;width:6px;height:6px;border-radius:50%;background:#FF6700}
 .tourchip.on i{animation:blink 1.2s steps(2) infinite}
 @keyframes blink{50%{opacity:.15}}
 @media (prefers-reduced-motion: reduce){.tourchip.on i{animation:none}}
-.turn{position:fixed;left:0;right:0;bottom:14px;text-align:center;font:600 12px/1.4 'JetBrains Mono',monospace;letter-spacing:1px;color:#7d8391;text-transform:uppercase;display:none}
+.turn{position:fixed;left:0;right:0;bottom:14px;text-align:center;font:600 12px/1.4 'JetBrains Mono',monospace;letter-spacing:1px;color:#53617A;text-transform:uppercase;display:none}
 @media (orientation:portrait) and (max-width:820px){.turn{display:block}}
 `;
 
@@ -52,7 +52,14 @@ export function runLive() {
   const ui = createConsole(app);
   const tourCursor = makeCursor(ui);
   const frameConsole = makeConsoleFrame(ui, st);
-  const trainee = createTrainee(ui.root);
+  // a signed-in trainee may go no further than the first stop whose question is not yet answered
+  const trainee = createTrainee(ui.root, {goTo: (n) => {
+    takeOver();
+    playing = false;
+    go(n);
+  }});
+  const cap = () => (trainee.signedIn ? trainee.unlocked : NSTOP - 1);
+  const blocked = () => trainee.toast(`Answer the question at stop ${cap() + 1} to unlock the next stop.`);
 
   // ------------------------------------------------------------ quality tiers
   const TIERS = [
@@ -111,6 +118,16 @@ export function runLive() {
   const AP = {on: true, t0: 0};
   let lastInput = 0;
   const startTour = () => {
+    // a signed-in trainee drives: the tour would run ahead of the questions
+    if (trainee.signedIn) {
+      AP.on = false;
+      // the labels are the clickable parts of the lesson: on from the start
+      if (!disp.labels.on) {
+        disp.labels.on = 1;
+        disp.labels.t = T;
+      }
+      return;
+    }
     AP.on = true;
     // begin where the visitor left off when that matches a point in the film, else from the top
     AP.t0 = T;
@@ -152,6 +169,11 @@ export function runLive() {
 
   // ------------------------------------------------------------ controls
   const go = (n) => {
+    if (n > cap()) {
+      blocked();
+      n = cap();
+      playing = false;
+    }
     Dt = clamp(n, 0, NSTOP - 1);
     hold = 0;
   };
@@ -199,7 +221,9 @@ export function runLive() {
     ui.root.appendChild(d);
   };
   slider(ui.TL.x, ui.TL.w, 807, (k) => {
-    D = Dt = k * (NSTOP - 1);
+    const want = k * (NSTOP - 1);
+    if (want > cap() + 0.02) blocked();
+    D = Dt = Math.min(want, cap());
     playing = false;
   });
   slider(ui.SP.x, ui.SP.w, 817, (k) => (speed = SPEED[0] + k * (SPEED[1] - SPEED[0])));
@@ -252,7 +276,9 @@ export function runLive() {
       e.preventDefault();
       takeOver();
       playing = false;
-      Dt = clamp(Dt + e.deltaY * 0.0018, 0, NSTOP - 1);
+      const want = Dt + e.deltaY * 0.0018;
+      if (want > cap() + 0.02) blocked();
+      Dt = clamp(want, 0, cap());
     },
     {passive: false},
   );
@@ -284,6 +310,9 @@ export function runLive() {
       }
     }
 
+    // signing in hands control to the trainee at once
+    if (AP.on && trainee.signedIn) takeOver();
+    tourChip.style.display = trainee.signedIn ? 'none' : '';
     let tgt;
     let cursor;
     let labelsK;
@@ -298,6 +327,7 @@ export function runLive() {
       labelsK = eased('labels');
     } else {
       if (T - lastInput > IDLE) startTour();
+      if (Dt > cap()) Dt = cap();
       if (playing && Math.abs(Dt - D) < 0.004) {
         hold += dt * speed;
         if (hold > HOLD) {
@@ -323,7 +353,7 @@ export function runLive() {
     trainee.update(D, dt, AP.on);
     const {J} = st.frame({d: D, t: T}, {...cam, az: cam.az * D2R, el: cam.el * D2R, k: 1, sx: 0, sy: -22});
     const display = Object.fromEntries(DISPLAY.map((x) => [x, disp[x].on]));
-    frameConsole(T, {J, display, labels: labelsK, cursor, paused: AP.on ? false : !playing, speed: AP.on ? 1 : speed, speedK: speedK(AP.on ? 1 : speed)});
+    frameConsole(T, {J, display, labels: labelsK, cursor, paused: AP.on ? false : !playing, speed: AP.on ? 1 : speed, speedK: speedK(AP.on ? 1 : speed), locked: trainee.signedIn ? trainee.unlocked : null});
     if (tourChip.classList.contains('on') !== AP.on || !tourChip.firstChild) {
       tourChip.classList.toggle('on', AP.on);
       tourChip.innerHTML = AP.on ? '<i></i>AUTO TOUR · CLICK ANYWHERE TO TAKE OVER' : '▶ RESUME TOUR';

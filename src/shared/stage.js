@@ -11,7 +11,7 @@ import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {buildModel, VIEWH} from './model.js';
 
 const V3 = THREE.Vector3;
-export const COL = {bg: '#eceef2', floor: '#e6e9ee', shadow: '#4a5468'};
+export const COL = {bg: '#FAFBFD', floor: '#E0E5EC', shadow: '#53617A'}; // MI-CHIPS C08 Soft White, C09, C07
 export const FOV_DEG = 28;
 // camera distance so the field of view spans VIEWH world units at the target
 export const CAM_D = VIEWH / 2 / Math.tan((FOV_DEG * Math.PI) / 360);
@@ -107,6 +107,38 @@ export function createStage({canvas, capture = false}) {
 
   const model = buildModel();
   scene.add(model.root);
+  // The wafer reflects its own studio: dark walls with bright softboxes and strip lights, so its mirror surface shows
+  // distinct bars of light that slide across the dies as the view turns, as a polished wafer does under fab lighting.
+  {
+    const env = new THREE.Scene();
+    env.background = new THREE.Color('#1c2028');
+    const panel = (w, h, pos, col, k) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide}));
+      m.position.copy(pos);
+      m.lookAt(0, 0, 0);
+      env.add(m);
+    };
+    panel(9, 3.2, new V3(0, 12, -3), '#ffffff', 5); // the big overhead softbox
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      panel(1.1, 9, new V3(Math.cos(a) * 11, 6, Math.sin(a) * 11), i % 2 ? '#dfe9ff' : '#fff1de', 6); // a ring of tall strip lights
+    }
+    panel(14, 0.7, new V3(0, 4, 12), '#ffffff', 3.5); // a long low strip behind the camera
+    // the strip the camera sees mirrored in the wafer (opposite its azimuth, at its elevation): a band of light across the dies
+    panel(2.2, 12, new V3(-5.4, 7.6, -9.6), '#f4f7ff', 3.2);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshBasicMaterial({color: '#2a2f38', side: THREE.DoubleSide}));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -3;
+    env.add(floor);
+    const pm = new THREE.PMREMGenerator(renderer);
+    const refl = pm.fromScene(env, 0.01).texture;
+    pm.dispose();
+    for (const m of model.levels[0].reflective) {
+      m.envMap = refl;
+      m.envMapIntensity = 1.15;
+      m.needsUpdate = true;
+    }
+  }
   model.root.traverse((o) => o.userData.noAO && noAO.push(o));
 
   const size = {w: 1600, h: 900};
