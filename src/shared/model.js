@@ -116,7 +116,7 @@ function drawFloorplan(g, n) {
 // diagonally across the wafer.
 export function rainbow(x, z, out) {
   const u = clamp((x * 0.8 - z * 0.6) / (1.5 * W.r) + 0.5, 0, 1);
-  return out.setHSL(0.02 + 0.84 * u, 1.0, 0.56);
+  return out.setHSL(0.6 - 0.04 * u, 0.1, 0.7 + 0.06 * u);
 }
 
 // ------------------------------------------------------------ level 0..2: wafer, die, exploded stack (mm)
@@ -138,7 +138,7 @@ function buildMacro() {
   thick.repeat.set(1 / nCell, 1 / nCell);
   thick.offset.set(0.5, 0.5);
   const waferTop = mat(
-    {map: plan, color: '#7d828d', vertexColors: true, roughness: 0.14, metalness: 0.5, iridescence: 0.9, iridescenceIOR: 1.8, iridescenceThicknessRange: [180, 720], iridescenceThicknessMap: thick, clearcoat: 1, clearcoatRoughness: 0.03},
+    {map: plan, color: '#7d828d', vertexColors: true, roughness: 0.06, metalness: 0.6, iridescence: 0.35, iridescenceIOR: 1.8, iridescenceThicknessRange: [180, 720], iridescenceThicknessMap: thick, clearcoat: 1, clearcoatRoughness: 0.03},
     THREE.MeshPhysicalMaterial,
   );
   const silicon = mat({color: '#b4b9c3', roughness: 0.12, metalness: 0.85});
@@ -182,7 +182,7 @@ function buildMacro() {
   const photo = new THREE.Texture();
   photo.colorSpace = THREE.SRGBColorSpace;
   photo.anisotropy = 16;
-  const tileTop = mat({map: photo, roughness: 0.14, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.03, iridescence: 0.9, iridescenceIOR: 1.7, iridescenceThicknessRange: [250, 650]}, THREE.MeshPhysicalMaterial);
+  const tileTop = mat({map: photo, roughness: 0.06, metalness: 0.6, clearcoat: 1, clearcoatRoughness: 0.03, iridescence: 0.35, iridescenceIOR: 1.7, iridescenceThicknessRange: [250, 650]}, THREE.MeshPhysicalMaterial);
   const tileSide = mat({color: '#3a3f48', roughness: 0.45, metalness: 0.5});
   reflective.push(waferTop, silicon, rimMat, tileTop);
   const sealMat = mat({color: '#c7a46c', roughness: 0.45, metalness: 1});
@@ -207,7 +207,7 @@ function buildMacro() {
       o.updateMatrix();
       tiles.setMatrixAt(n, o.matrix);
       seals.setMatrixAt(n, o.matrix.clone().setPosition(cx, W.t + TH, cz));
-      tiles.setColorAt(n, rainbow(cx, cz, tc).lerp(white, 0.12));
+      tiles.setColorAt(n, rainbow(cx, cz, tc).lerp(white, 0.25));
     });
   }
   tiles.receiveShadow = true;
@@ -244,12 +244,12 @@ function buildMacro() {
       g.drawImage(img, 0, 0);
       const px = g.getImageData(0, 0, im.width, im.height);
       const d = px.data;
-      const tint = [1.04, 0.96, 1.06];
+      const tint = [0.96, 0.99, 1.06];
       for (let q = 0; q < d.length; q += 4) {
         const l = 0.3 * d[q] + 0.59 * d[q + 1] + 0.11 * d[q + 2];
         for (let k = 0; k < 3; k++) {
-          const v = d[q + k] + (l - d[q + k]) * 0.85;
-          d[q + k] = Math.max(0, Math.min(255, ((v - 128) * 1.3 + 138) * tint[k]));
+          const v = d[q + k] + (l - d[q + k]) * 0.96;
+          d[q + k] = Math.max(0, Math.min(255, ((v - 128) * 1.45 + 132) * tint[k]));
         }
       }
       g.putImageData(px, 0, 0);
@@ -368,7 +368,7 @@ function buildMacro() {
   // the floor plan as it looks from above, on top of the closed die; fades as the die opens
   const decalMat = tileTop.clone();
   reflective.push(decalMat);
-  decalMat.color = rainbow(SEL_C[0], -SEL_C[1], new THREE.Color()).lerp(new THREE.Color(1, 1, 1), 0.12);
+  decalMat.color = rainbow(SEL_C[0], -SEL_C[1], new THREE.Color()).lerp(new THREE.Color(1, 1, 1), 0.25);
   const decal = new THREE.Mesh(new THREE.PlaneGeometry(W.die, W.die).rotateX(-Math.PI / 2), decalMat);
   const decalSeal = new THREE.Mesh(sealGeo, sealMat.clone());
   decal.add(decalSeal);

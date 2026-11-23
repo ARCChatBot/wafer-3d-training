@@ -111,22 +111,38 @@ export function createStage({canvas, capture = false}) {
   // distinct bars of light that slide across the dies as the view turns, as a polished wafer does under fab lighting.
   {
     const env = new THREE.Scene();
-    env.background = new THREE.Color('#1c2028');
+    env.background = new THREE.Color('#9aa3b0');
     const panel = (w, h, pos, col, k) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide}));
       m.position.copy(pos);
       m.lookAt(0, 0, 0);
       env.add(m);
     };
-    panel(9, 3.2, new V3(0, 12, -3), '#ffffff', 5); // the big overhead softbox
+    panel(9, 3.2, new V3(0, 12, -3), '#ffffff', 2.6); // the big overhead softbox
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.3;
       panel(1.1, 9, new V3(Math.cos(a) * 11, 6, Math.sin(a) * 11), i % 2 ? '#dfe9ff' : '#fff1de', 6); // a ring of tall strip lights
     }
     panel(14, 0.7, new V3(0, 4, 12), '#ffffff', 3.5); // a long low strip behind the camera
     // the strip the camera sees mirrored in the wafer (opposite its azimuth, at its elevation): a band of light across the dies
-    panel(2.2, 12, new V3(-5.4, 7.6, -9.6), '#f4f7ff', 3.2);
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshBasicMaterial({color: '#2a2f38', side: THREE.DoubleSide}));
+    {
+      const c = document.createElement('canvas');
+      c.width = 16;
+      c.height = 256;
+      const g = c.getContext('2d');
+      const gr = g.createLinearGradient(0, 0, 0, 256);
+      [['#5a3cff', 0], ['#a46bff', 0.22], ['#7fa6ff', 0.45], ['#38d6ff', 0.68], ['#2ff0e0', 0.85], ['#1aa6c8', 1]].forEach(([col, k]) => gr.addColorStop(k, col));
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 16, 256);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 18), new THREE.MeshBasicMaterial({map: t, color: new THREE.Color(1, 1, 1).multiplyScalar(4.2), side: THREE.DoubleSide}));
+      m.position.set(-5.4, 7.6, -9.6);
+      m.lookAt(0, 0, 0);
+      m.rotateZ(-0.75);
+      env.add(m);
+    }
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshBasicMaterial({color: '#7d8796', side: THREE.DoubleSide}));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -3;
     env.add(floor);

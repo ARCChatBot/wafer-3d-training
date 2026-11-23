@@ -25,7 +25,7 @@ An interactive 3D lesson for high-school students: travel from a whole 300 mm si
 - **Completion and certificate:** answering all seven shows a "2D/3D training is complete" card with the name, V-number, score, time and a certificate ID, plus a **Download certificate** button for a printable certificate of completion.
 - **Real images:** a panel shows a real microscope image at most stops (see [CREDITS.md](CREDITS.md)).
 - **Auto tour:** before sign-in the page tours itself; once a trainee signs in, they drive and stops unlock in order.
-- **Look:** a mirror-polished wafer that reflects studio light, real die photography on every die, and the Operation SEMI / MI-CHIPS presentation colours (Trojan Blue `#00358E`, Precision Orange `#FF6700` as a small accent, Deep Academic Slate `#0B0F19`).
+- **Look:** a mirror-polished silver wafer with a diagonal violet-to-blue diffraction streak, real die photography on every die, and the Operation SEMI / MI-CHIPS presentation colours (Trojan Blue `#00358E`, Precision Orange `#FF6700` as a small accent, Deep Academic Slate `#0B0F19`).
 
 ### Controls
 
